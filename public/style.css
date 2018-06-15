@@ -1,0 +1,308 @@
+/* Fix user-agent */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+}
+
+html, input {
+  font-family:
+    "HelveticaNeue-Light",
+    "Helvetica Neue Light",
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    "Lucida Grande",
+    sans-serif;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+ul {
+  list-style: none;
+  word-wrap: break-word;
+}
+
+/* Pages */
+
+.pages {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.page {
+  height: 100%;
+  position: absolute;
+  width: 100%;
+}
+
+/* Login Page */
+
+.login.page {
+  background-color: #000;
+}
+
+.login.page .form {
+  height: 100px;
+  margin-top: -100px;
+  position: absolute;
+
+  text-align: center;
+  top: 50%;
+  width: 100%;
+}
+
+.login.page .form .usernameInput {
+  background-color: transparent;
+  border: none;
+  border-bottom: 2px solid #fff;
+  outline: none;
+  padding-bottom: 15px;
+  text-align: center;
+  width: 400px;
+}
+
+.login.page .title {
+  font-size: 200%;
+}
+
+.login.page .usernameInput {
+  font-size: 200%;
+  letter-spacing: 3px;
+}
+
+.login.page .title, .login.page .usernameInput {
+  color: #fff;
+  font-weight: 100;
+}
+
+/* Chat page */
+
+.chat.page {
+  display: none;
+}
+
+/* Font */
+
+.messages {
+  font-size: 150%;
+}
+
+.inputMessage {
+  font-size: 100%;
+}
+
+.log {
+  color: gray;
+  font-size: 70%;
+  margin: 5px;
+  text-align: center;
+}
+
+/* Messages */
+
+.chatArea {
+  height: 100%;
+  padding-bottom: 60px;
+}
+
+.messages {
+  height: 100%;
+  margin: 0;
+  overflow-y: scroll;
+  padding: 10px 20px 10px 20px;
+}
+
+.message.typing .messageBody {
+  color: gray;
+}
+
+.username {
+  font-weight: 700;
+  overflow: hidden;
+  padding-right: 15px;
+  text-align: right;
+}
+
+/* Input */
+
+.inputMessage {
+  border: 10px solid #000;
+  bottom: 0;
+  height: 60px;
+  left: 0;
+  outline: none;
+  padding-left: 10px;
+  position: absolute;
+  right: 0;
+  width: 100%;
+}
+    // Setup default options
+    if (!options) {
+      options = {};
+    }
+    if (typeof options.fade === 'undefined') {
+      options.fade = true;
+    }
+    if (typeof options.prepend === 'undefined') {
+      options.prepend = false;
+    }
+
+    // Apply options
+    if (options.fade) {
+      $el.hide().fadeIn(FADE_TIME);
+    }
+    if (options.prepend) {
+      $messages.prepend($el);
+    } else {
+      $messages.append($el);
+    }
+    $messages[0].scrollTop = $messages[0].scrollHeight;
+  }
+
+  // Prevents input from having injected markup
+  const cleanInput = (input) => {
+    return $('<div/>').text(input).html();
+  }
+
+  // Updates the typing event
+  const updateTyping = () => {
+    if (connected) {
+      if (!typing) {
+        typing = true;
+        socket.emit('typing');
+      }
+      lastTypingTime = (new Date()).getTime();
+
+      setTimeout(() => {
+        var typingTimer = (new Date()).getTime();
+        var timeDiff = typingTimer - lastTypingTime;
+        if (timeDiff >= TYPING_TIMER_LENGTH && typing) {
+          socket.emit('stop typing');
+          typing = false;
+        }
+      }, TYPING_TIMER_LENGTH);
+    }
+  }
+
+  // Gets the 'X is typing' messages of a user
+  const getTypingMessages = (data) => {
+    return $('.typing.message').filter(i => {
+      return $(this).data('username') === data.username;
+    });
+  }
+
+  // Gets the color of a username through our hash function
+  const getUsernameColor = (username) => {
+    // Compute hash code
+    var hash = 7;
+    for (var i = 0; i < username.length; i++) {
+       hash = username.charCodeAt(i) + (hash << 5) - hash;
+    }
+    // Calculate color
+    var index = Math.abs(hash % COLORS.length);
+    return COLORS[index];
+  }
+
+  // Keyboard events
+
+  $window.keydown(event => {
+    // Auto-focus the current input when a key is typed
+    if (!(event.ctrlKey || event.metaKey || event.altKey)) {
+      $currentInput.focus();
+    }
+    // When the client hits ENTER on their keyboard
+    if (event.which === 13) {
+      if (username) {
+        sendMessage();
+        socket.emit('stop typing');
+        typing = false;
+      } else {
+        setUsername();
+      }
+    }
+  });
+
+  $inputMessage.on('input', () => {
+    updateTyping();
+  });
+
+  // Click events
+
+  // Focus input when clicking anywhere on login page
+  $loginPage.click(() => {
+    $currentInput.focus();
+  });
+
+  // Focus input when clicking on the message input's border
+  $inputMessage.click(() => {
+    $inputMessage.focus();
+  });
+
+  // Socket events
+
+  // Whenever the server emits 'login', log the login message
+  socket.on('login', (data) => {
+    connected = true;
+    // Display the welcome message
+    var message = "Welcome to Socket.IO Chat ¡V ";
+    log(message, {
+      prepend: true
+    });
+    addParticipantsMessage(data);
+  });
+
+  // Whenever the server emits 'new message', update the chat body
+  socket.on('new message', (data) => {
+    addChatMessage(data);
+  });
+
+  // Whenever the server emits 'user joined', log it in the chat body
+  socket.on('user joined', (data) => {
+    log(data.username + ' joined');
+    addParticipantsMessage(data);
+  });
+
+  // Whenever the server emits 'user left', log it in the chat body
+  socket.on('user left', (data) => {
+    log(data.username + ' left');
+    addParticipantsMessage(data);
+    removeChatTyping(data);
+  });
+
+  // Whenever the server emits 'typing', show the typing message
+  socket.on('typing', (data) => {
+    addChatTyping(data);
+  });
+
+  // Whenever the server emits 'stop typing', kill the typing message
+  socket.on('stop typing', (data) => {
+    removeChatTyping(data);
+  });
+
+  socket.on('disconnect', () => {
+    log('you have been disconnected');
+  });
+
+  socket.on('reconnect', () => {
+    log('you have been reconnected');
+    if (username) {
+      socket.emit('add user', username);
+    }
+  });
+
+  socket.on('reconnect_error', () => {
+    log('attempt to reconnect has failed');
+  });
+
+});
